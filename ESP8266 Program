@@ -1,0 +1,110 @@
+Process:
+***********************************
+1) Download the latest Arduino® IDE.
+
+2) Add the ThingSpeak Library for Arduino and ESP8266:
+
+a. Select Sketch > Include Library > Manage Libraries.
+
+b. Select ThingSpeak to add it to your sketch.
+
+3) Add the ESP8266 Board Package.
+
+a) Under File > Preferences, enter https://arduino.esp8266.com/stable/package_esp8266com_index.json into Additional Board Manager URLs.
+
+b) Select Tools > Boards > Board Manager. Enter ESP8266 in the search bar and install the package.
+
+4) Select the appropriate port and board in the Arduino IDE. The hardware used to generate this example used the Node MCU 1.0 (ESP 8266–12E) option.
+5) Create the application. Open a new window in the Arduino IDE, and save the file. Add the code provided here. Be sure to change the wireless network information, the channel IDs (you can use a single channel), the read API key, and the write API key. You do not need to change the coefficients in the code because the program reads them from your channel. Once connected, the device measures the voltage across the thermistor every two minutes. It calculates the temperature based on the calibration stored in your channel, and posts the temperature to your channel.
+
+
+
+Program:
+******************************************************************************
+#include <DHT.h>
+#include <ThingSpeak.h>
+#include <ESP8266WiFi.h>
+
+int write2TSData(long ,unsigned int, float, unsigned int, float, unsigned int, float);
+
+DHT dht; 
+//DHT(uint8_t pin, uint8_t type, uint8_t count=6);
+
+char  ssid[]="Connectify-me";
+char  password[]="********";
+
+char readAPIKEY[]="readAPIKey";
+char writeAPIKEY[]="writeAPIKey";
+unsigned int dataFieldOne=1;
+unsigned int dataFieldTwo=2;
+unsigned int dataFieldThree=3;
+int channelID = ThingspeakChannelID;
+char thingSpeakAddress[] = "api.thingspeak.com";
+
+
+unsigned int lastUpdateTime=0;
+unsigned int lastPostingInterval=120L * 1000L;
+unsigned long lastConnectionTime=0;
+
+
+WiFiClient client;
+
+
+
+
+void setup() {
+  
+   Serial.begin(115200);
+   Serial.println("start");
+   WiFi.begin(ssid,password);
+   connectWiFi();
+   ThingSpeak.begin( client );
+   dht.setup(D1);
+
+}
+
+void loop() {
+ 
+  unsigned long Time = millis();
+  if(Time-lastUpdateTime>=lastPostingInterval)
+  {
+    float fahrenheitTemp, celsiusTemp,humidity;
+    lastUpdateTime=millis();
+
+    celsiusTemp= dht.getTemperature();
+    //dht.readTemperature();
+    fahrenheitTemp = (celsiusTemp*(9/5))+32;
+    humidity =dht.getHumidity();
+    Serial.println("Temperature =  " + String( celsiusTemp )+ "Humidity  = "+String( humidity ));
+    write2TSData(channelID , dataFieldOne,celsiusTemp, dataFieldTwo, fahrenheitTemp, dataFieldThree, humidity);
+    
+  }
+
+}
+int connectWiFi()
+{
+  while(WiFi.status()!=WL_CONNECTED)
+  {
+    
+    delay(2500);
+    Serial.println("Please wait, wifi is connecting");
+    
+    }
+    Serial.println("wifi connected");
+    
+  
+  }
+  int write2TSData(long TSChannel, unsigned int TSField1,float field1Data, unsigned int TSField2, float field2Data,unsigned int TSField3, float field3Data)
+  {
+    ThingSpeak.setField(TSField1,field1Data);
+    ThingSpeak.setField(TSField2,field2Data);
+    ThingSpeak.setField(TSField3,field3Data);
+
+    int writeSuccess=ThingSpeak.writeFields(TSChannel,writeAPIKEY);
+    if ( writeSuccess ){
+    
+    Serial.println(" written to Thingspeak." );
+    }
+    return writeSuccess;
+    
+  }
